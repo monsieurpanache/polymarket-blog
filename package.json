@@ -1,0 +1,25 @@
+{
+  "name": "polymarket-blog",
+  "version": "1.0.0",
+  "description": "Auto-generated Polymarket blog with Mistral AI",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "generate": "node generate-article-bot.js"
+  },
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "@mistralai/mistralai": "^0.0.13",
+    "gray-matter": "^4.0.3",
+    "marked": "^11.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.0.0"
+  }
+}
