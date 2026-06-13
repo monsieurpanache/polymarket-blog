@@ -6,6 +6,31 @@ import { marked } from 'marked';
 import matter from 'gray-matter';
 
 export default function Article({ article, content }) {
+  if (!article) {
+    return (
+      <>
+        <Head>
+          <title>Article not found - Polymarket Guide</title>
+        </Head>
+        <div style={styles.container}>
+          <header style={styles.header}>
+            <Link href="/">
+              <a style={styles.backLink}>← Back to home</a>
+            </Link>
+          </header>
+          <main style={styles.notFound}>
+            <h1>Article Not Found</h1>
+            <p>The article you're looking for doesn't exist yet.</p>
+            <p>New articles are generated daily at 8 AM UTC.</p>
+            <Link href="/">
+              <a style={styles.homeLink}>← Go back home</a>
+            </Link>
+          </main>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <Head>
@@ -87,76 +112,91 @@ export async function getStaticPaths() {
   const articlesDir = path.join(process.cwd(), 'public', 'articles');
   
   if (!fs.existsSync(articlesDir)) {
-    return { paths: [], fallback: true };
+    return { paths: [], fallback: 'blocking' };
   }
 
-  const files = fs.readdirSync(articlesDir).filter(file => file.endsWith('.md'));
-  
-  const paths = files.map((file) => {
-    const filePath = path.join(articlesDir, file);
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
-    const { data } = matter(fileContent);
+  try {
+    const files = fs.readdirSync(articlesDir).filter(file => file.endsWith('.md'));
     
-    return {
-      params: {
-        slug: data.slug || file.replace('.md', '')
-      }
-    };
-  });
+    const paths = files.map((file) => {
+      const filePath = path.join(articlesDir, file);
+      const fileContent = fs.readFileSync(filePath, 'utf-8');
+      const { data } = matter(fileContent);
+      
+      return {
+        params: {
+          slug: data.slug || file.replace('.md', '')
+        }
+      };
+    });
 
-  return {
-    paths,
-    fallback: 'blocking'
-  };
+    return {
+      paths,
+      fallback: 'blocking'
+    };
+  } catch (error) {
+    console.error('Error in getStaticPaths:', error);
+    return { paths: [], fallback: 'blocking' };
+  }
 }
 
 export async function getStaticProps({ params }) {
-  const articlesDir = path.join(process.cwd(), 'public', 'articles');
-  const files = fs.readdirSync(articlesDir);
-  
-  let article = null;
-  let content = '';
-
-  for (const file of files) {
-    if (!file.endsWith('.md')) continue;
+  try {
+    const articlesDir = path.join(process.cwd(), 'public', 'articles');
     
-    const filePath = path.join(articlesDir, file);
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
-    const { data, content: rawContent } = matter(fileContent);
-    
-    if ((data.slug || file.replace('.md', '')) === params.slug) {
-      marked.setOptions({
-        breaks: true,
-        gfm: true,
-      });
-
-      let html = marked(rawContent);
-      html = html.replace(/<h2>(.*?)<\/h2>/g, (match, content) => {
-        const id = content.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
-        return `<h2 id="${id}">${content}</h2>`;
-      });
-
-      article = {
-        title: data.title || file.replace('.md', ''),
-        slug: params.slug,
-        date: data.date || new Date().toISOString(),
-        keywords: data.keywords || 'polymarket',
-        excerpt: rawContent.slice(0, 160) + '...'
-      };
-      
-      content = html;
-      break;
+    if (!fs.existsSync(articlesDir)) {
+      return { notFound: true };
     }
-  }
 
-  if (!article) {
+    const files = fs.readdirSync(articlesDir);
+    
+    let article = null;
+    let content = '';
+
+    for (const file of files) {
+      if (!file.endsWith('.md')) continue;
+      
+      const filePath = path.join(articlesDir, file);
+      const fileContent = fs.readFileSync(filePath, 'utf-8');
+      const { data, content: rawContent } = matter(fileContent);
+      
+      if ((data.slug || file.replace('.md', '')) === params.slug) {
+        marked.setOptions({
+          breaks: true,
+          gfm: true,
+        });
+
+        let html = marked(rawContent);
+        html = html.replace(/<h2>(.*?)<\/h2>/g, (match, content) => {
+          const id = content.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+          return `<h2 id="${id}">${content}</h2>`;
+        });
+
+        article = {
+          title: data.title || file.replace('.md', ''),
+          slug: params.slug,
+          date: data.date || new Date().toISOString(),
+          keywords: data.keywords || 'polymarket',
+          excerpt: rawContent.slice(0, 160) + '...'
+        };
+        
+        content = html;
+        break;
+      }
+    }
+
+    if (!article) {
+      return { notFound: true };
+    }
+
+    return {
+      props: { article, content },
+      revalidate: 3600
+    };
+  } catch (error) {
+    console.error('Error in getStaticProps:', error);
     return { notFound: true };
   }
-
-  return {
-    props: { article, content },
-    revalidate: 3600
-  };
 }
 
 const styles = {
@@ -176,6 +216,22 @@ const styles = {
     fontSize: '16px',
     fontWeight: '500',
     opacity: 0.9,
+  },
+  notFound: {
+    maxWidth: '900px',
+    margin: '0 auto',
+    padding: '60px 20px',
+    textAlign: 'center',
+    background: 'white',
+    marginTop: '20px',
+    borderRadius: '8px',
+  },
+  homeLink: {
+    display: 'inline-block',
+    marginTop: '20px',
+    color: '#667eea',
+    textDecoration: 'none',
+    fontWeight: '600',
   },
   main: {
     maxWidth: '900px',
