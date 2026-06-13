@@ -1,17 +1,10 @@
 /**
  * POLYMARKET BLOG - ARTICLE GENERATOR BOT
- * Génère automatiquement des articles SEO avec Mistral API (GRATUIT)
- * À la racine du repo!
+ * Version FIXÉE - Utilise fetch directement (pas de package npm)
  */
 
-const Mistral = require('@mistralai/mistralai').default;
 const fs = require('fs');
 const path = require('path');
-
-// Configuration
-const client = new Mistral({
-  apiKey: process.env.MISTRAL_API_KEY
-});
 
 const ARTICLES_DIR = 'public/articles';
 
@@ -49,51 +42,65 @@ const TOPICS = [
 ];
 
 async function generateArticle(topic) {
-  console.log(`📝 Génération de: ${topic.title}...`);
+  console.log(`📝 Generating: ${topic.title}...`);
 
-  const prompt = `Écris un article SEO professionnel et complet en anglais sur: "${topic.title}"
+  const prompt = `Write a professional SEO-optimized article in English about: "${topic.title}"
 
-INSTRUCTIONS CRITIQUES:
-1. LONGUEUR: Minimum 2500 mots
-2. STRUCTURE MARKDOWN:
+CRITICAL REQUIREMENTS:
+1. LENGTH: Minimum 2500 words
+2. MARKDOWN STRUCTURE:
    - # H1 Title: ${topic.title}
    - ## H2 sections (4-6 sections)
    - ### H3 subsections
 3. SEO OPTIMIZATION:
-   - Mots-clés principaux: ${topic.keywords}
-   - Utilise ces keywords naturellement dans les paragraphes
-   - Premiere paragraph doit contenir le mot-clé principal
-4. CONTENU:
-   - Professionnel, informatif, utile
-   - Exemples concrets si possible
-   - Pas de contenu générique/vague
-   - Toujours actionnable
-5. FORMATAGE:
-   - Code snippets avec backticks si nécessaire
-   - Bold pour points importants (**texte**)
-   - Listes à puces pour clarity
-   - Tableaux pour comparaisons
-6. APPELS À L'ACTION:
-   - 2-3 CTAs naturels vers Polymarket
+   - Main keywords: ${topic.keywords}
+   - Use keywords naturally throughout
+   - Include keywords in first paragraph
+4. CONTENT:
+   - Professional and informative
+   - Concrete examples
+   - Action-oriented
+   - High-quality
+5. FORMATTING:
+   - Use bold for key points (**text**)
+   - Use bullet lists for clarity
+   - Use tables for comparisons
+6. CALL TO ACTION:
+   - 2-3 CTAs to Polymarket
    - Format: "[Start trading on Polymarket](https://polymarket.com)"
 7. DISCLAIMER:
-   - Termine avec: "This is educational content only. Trading involves risk of loss."
+   - End with: "This is educational content only. Trading involves risk of loss."
 
-Commence directement par le contenu, pas d'introduction.`;
+Start directly with content, no introduction.`;
 
   try {
-    const message = await client.messages.create({
-      model: "mistral-large-latest",
-      messages: [
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      max_tokens: 4000
+    const response = await fetch('https://api.mistral.ai/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'mistral-large-latest',
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 4000
+      })
     });
 
-    const content = message.content[0].text;
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('API Error:', error);
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.content[0].text;
+
     return {
       title: topic.title,
       content: content,
@@ -101,7 +108,7 @@ Commence directement par le contenu, pas d'introduction.`;
       generated_at: new Date().toISOString()
     };
   } catch (error) {
-    console.error(`❌ Erreur pour ${topic.title}:`, error.message);
+    console.error(`❌ Error for ${topic.title}:`, error.message);
     throw error;
   }
 }
@@ -121,13 +128,12 @@ slug: "${slug}"
   
   const filepath = path.join(ARTICLES_DIR, filename);
   
-  // Créer le dossier s'il n'existe pas
   if (!fs.existsSync(ARTICLES_DIR)) {
     fs.mkdirSync(ARTICLES_DIR, { recursive: true });
   }
 
   fs.writeFileSync(filepath, markdown, 'utf-8');
-  console.log(`✅ Fichier créé: ${filepath}`);
+  console.log(`✅ File created: ${filepath}`);
   
   return filepath;
 }
@@ -149,39 +155,35 @@ async function main() {
   console.log(`
 ╔════════════════════════════════════════════════╗
 ║  🤖 POLYMARKET ARTICLE GENERATOR BOT           ║
-║     Powered by Mistral API (GRATUIT)           ║
+║     Powered by Mistral API (FREE)              ║
 ╚════════════════════════════════════════════════╝
   `);
 
   try {
-    // Sélectionne un sujet aléatoire
     const topic = await selectRandomTopic();
-    console.log(`\n📌 Sujet du jour: ${topic.title}\n`);
+    console.log(`\n📌 Topic: ${topic.title}\n`);
 
-    // Génère l'article
     const article = await generateArticle(topic);
 
-    // Crée le fichier
     const slug = generateSlug(topic.title);
     const filename = `${new Date().toISOString().split('T')[0]}-${slug}.md`;
     await createMarkdownFile(article, filename);
 
     console.log(`
-✨ Article généré avec succès!
-📊 Statistiques:
-   - Titre: ${article.title}
-   - Mots-clés: ${article.keywords}
-   - Fichier: public/articles/${filename}
+✨ Article generated successfully!
+📊 Statistics:
+   - Title: ${article.title}
+   - Keywords: ${article.keywords}
+   - File: public/articles/${filename}
 
-🎉 Ton article est prêt à être publié!
+🎉 Article ready to publish!
     `);
   } catch (error) {
-    console.error(`\n❌ Erreur:`, error);
+    console.error(`\n❌ Error:`, error);
     process.exit(1);
   }
 }
 
-// Lance le script
 if (require.main === module) {
   main();
 }
