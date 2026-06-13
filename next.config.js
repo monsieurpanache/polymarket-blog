@@ -2,13 +2,8 @@
 const nextConfig = {
   pageExtensions: ['js', 'jsx'],
   reactStrictMode: true,
-  
   images: {
     unoptimized: true,
-  },
-
-  experimental: {
-    staticGenerationRetryCount: 3,
   },
 };
 
